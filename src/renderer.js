@@ -5,7 +5,7 @@ const ctx = canvas.getContext('2d');
 
 // Board dimensions
 const CELL_SIZE = 50;
-const BOARD_PADDING = 5;
+const BOARD_PADDING = 25;
 const COLS = 9;
 const ROWS = 10;
 
