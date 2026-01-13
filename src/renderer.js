@@ -34,6 +34,7 @@ let currentTurn = 'w'; // 'w' for red, 'b' for black
 let flipped = false;
 let engineReady = false;
 let isThinking = false;
+let highlightedMove = null; // {from: {row, col}, to: {row, col}}
 
 // Initialize the board from FEN
 function parseFEN(fen) {
@@ -219,6 +220,69 @@ function drawBoard() {
     ctx.fillStyle = 'rgba(0, 128, 0, 0.5)';
     ctx.fill();
   }
+
+  // Draw highlighted move from PV hover
+  if (highlightedMove) {
+    const fromRow = flipped ? (ROWS - 1 - highlightedMove.from.row) : highlightedMove.from.row;
+    const fromCol = flipped ? (COLS - 1 - highlightedMove.from.col) : highlightedMove.from.col;
+    const toRow = flipped ? (ROWS - 1 - highlightedMove.to.row) : highlightedMove.to.row;
+    const toCol = flipped ? (COLS - 1 - highlightedMove.to.col) : highlightedMove.to.col;
+
+    // Draw "from" square highlight
+    const fromX = offsetX + fromCol * CELL_SIZE;
+    const fromY = offsetY + fromRow * CELL_SIZE;
+    ctx.beginPath();
+    ctx.arc(fromX, fromY, CELL_SIZE * 0.45, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Draw "to" square highlight
+    const toX = offsetX + toCol * CELL_SIZE;
+    const toY = offsetY + toRow * CELL_SIZE;
+    ctx.beginPath();
+    ctx.arc(toX, toY, CELL_SIZE * 0.45, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0, 255, 100, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Draw arrow from source to destination
+    drawArrow(fromX, fromY, toX, toY);
+  }
+}
+
+// Draw an arrow between two points
+function drawArrow(fromX, fromY, toX, toY) {
+  const headLength = 15;
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+
+  // Shorten the arrow so it doesn't overlap with circles
+  const shortenBy = CELL_SIZE * 0.35;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  const ratio = (length - shortenBy) / length;
+
+  const endX = fromX + dx * ratio;
+  const endY = fromY + dy * ratio;
+  const startX = fromX + dx * (1 - ratio) * 0.5;
+  const startY = fromY + dy * (1 - ratio) * 0.5;
+
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = 'rgba(0, 200, 255, 0.7)';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Draw arrowhead
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0, 200, 255, 0.7)';
+  ctx.fill();
 }
 
 // Draw a single piece
@@ -784,6 +848,26 @@ function init() {
   document.getElementById('flip-board').addEventListener('click', flipBoard);
   document.getElementById('undo-move').addEventListener('click', undoMove);
   document.getElementById('get-hint').addEventListener('click', getHint);
+
+  // PV line hover event listeners
+  for (let i = 1; i <= 3; i++) {
+    const pvLine = document.getElementById(`pv-${i}`);
+    if (pvLine) {
+      pvLine.addEventListener('mouseenter', () => {
+        const moveText = pvLine.querySelector('.pv-move').textContent;
+        if (moveText && moveText !== '-' && moveText.length >= 4) {
+          const from = uciToPos(moveText.substring(0, 2));
+          const to = uciToPos(moveText.substring(2, 4));
+          highlightedMove = { from, to };
+          drawBoard();
+        }
+      });
+      pvLine.addEventListener('mouseleave', () => {
+        highlightedMove = null;
+        drawBoard();
+      });
+    }
+  }
 
   // Engine event listeners
   window.engine.onOutput(handleEngineOutput);

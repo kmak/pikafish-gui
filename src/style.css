@@ -159,6 +159,15 @@ body {
   background: #3d4a3d;
 }
 
+.pv-line:hover {
+  background: #404040;
+  cursor: pointer;
+}
+
+.pv-line:first-child:hover {
+  background: #4a5a4a;
+}
+
 .pv-rank {
   color: #888;
   font-weight: bold;
