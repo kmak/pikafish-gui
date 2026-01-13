@@ -338,3 +338,130 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #666;
 }
+
+/* Check indicator styling */
+#turn-indicator.in-check {
+  animation: check-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes check-pulse {
+  from {
+    background-color: transparent;
+  }
+  to {
+    background-color: rgba(255, 0, 0, 0.3);
+  }
+}
+
+#turn-indicator.red.in-check {
+  color: #ff0000;
+  text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+#turn-indicator.black.in-check {
+  background: #ff6666;
+  color: #1a1a1a;
+}
+
+/* Game Over Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal-content {
+  background: #3a3a3a;
+  padding: 40px 50px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: modal-appear 0.3s ease-out;
+}
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.result-text {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.result-text.red-wins {
+  color: #ff4444;
+  text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+.result-text.black-wins {
+  color: #e0e0e0;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.result-text.draw {
+  color: #ffa500;
+  text-shadow: 0 0 20px rgba(255, 165, 0, 0.5);
+}
+
+.result-detail {
+  color: #888;
+  font-size: 16px;
+  margin-bottom: 30px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.modal-btn {
+  padding: 12px 30px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.modal-btn.primary {
+  background: linear-gradient(135deg, #4a9f4a, #2d7a2d);
+  color: white;
+}
+
+.modal-btn.primary:hover {
+  background: linear-gradient(135deg, #5ab65a, #3a8a3a);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(74, 159, 74, 0.4);
+}
+
+.modal-btn.secondary {
+  background: #555;
+  color: #e0e0e0;
+}
+
+.modal-btn.secondary:hover {
+  background: #666;
+  transform: translateY(-2px);
+}

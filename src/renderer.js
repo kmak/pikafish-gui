@@ -35,6 +35,9 @@ let flipped = false;
 let engineReady = false;
 let isThinking = false;
 let highlightedMove = null; // {from: {row, col}, to: {row, col}}
+let isInCheck = false;
+let gameOver = false;
+let gameResult = null; // 'red-wins', 'black-wins', 'draw'
 
 // Initialize the board from FEN
 function parseFEN(fen) {
@@ -221,6 +224,31 @@ function drawBoard() {
     ctx.fill();
   }
 
+  // Draw check indicator on king
+  if (isInCheck && !gameOver) {
+    const kingPos = findKing(board, currentTurn);
+    if (kingPos) {
+      const displayRow = flipped ? (ROWS - 1 - kingPos.row) : kingPos.row;
+      const displayCol = flipped ? (COLS - 1 - kingPos.col) : kingPos.col;
+      const x = offsetX + displayCol * CELL_SIZE;
+      const y = offsetY + displayRow * CELL_SIZE;
+
+      // Draw pulsing red circle around checked king
+      ctx.beginPath();
+      ctx.arc(x, y, CELL_SIZE * 0.48, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Draw red glow
+      ctx.beginPath();
+      ctx.arc(x, y, CELL_SIZE * 0.52, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+    }
+  }
+
   // Draw highlighted move from PV hover
   if (highlightedMove) {
     const fromRow = flipped ? (ROWS - 1 - highlightedMove.from.row) : highlightedMove.from.row;
@@ -325,7 +353,7 @@ function drawPiece(col, row, piece, selected) {
 
 // Handle canvas click
 function handleClick(event) {
-  if (isThinking) return;
+  if (isThinking || gameOver) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left - BOARD_PADDING;
@@ -669,6 +697,76 @@ function filterLegalMoves(fromRow, fromCol, moves, color) {
   return validMoves;
 }
 
+// Check if a color is in check
+function isColorInCheck(color) {
+  const kingPos = findKing(board, color);
+  if (!kingPos) return false;
+
+  const enemyColor = color === 'w' ? 'b' : 'w';
+  return isSquareAttacked(board, kingPos.row, kingPos.col, enemyColor);
+}
+
+// Check if a color has any legal moves
+function hasLegalMoves(color) {
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const piece = board[row][col];
+      if (piece && piece.color === color) {
+        const moves = getLegalMoves(row, col);
+        if (moves.length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Check for game end conditions
+function checkGameEnd() {
+  const inCheck = isColorInCheck(currentTurn);
+  isInCheck = inCheck;
+
+  if (!hasLegalMoves(currentTurn)) {
+    gameOver = true;
+    if (inCheck) {
+      // Checkmate
+      gameResult = currentTurn === 'w' ? 'black-wins' : 'red-wins';
+    } else {
+      // Stalemate
+      gameResult = 'draw';
+    }
+    showGameOverModal();
+  }
+}
+
+// Show game over modal
+function showGameOverModal() {
+  const modal = document.getElementById('game-over-modal');
+  const resultText = document.getElementById('game-result-text');
+  const resultDetail = document.getElementById('game-result-detail');
+
+  if (gameResult === 'red-wins') {
+    resultText.textContent = 'Red Wins!';
+    resultText.className = 'result-text red-wins';
+    resultDetail.textContent = 'Checkmate - Black has no escape';
+  } else if (gameResult === 'black-wins') {
+    resultText.textContent = 'Black Wins!';
+    resultText.className = 'result-text black-wins';
+    resultDetail.textContent = 'Checkmate - Red has no escape';
+  } else {
+    resultText.textContent = 'Draw!';
+    resultText.className = 'result-text draw';
+    resultDetail.textContent = 'Stalemate - No legal moves available';
+  }
+
+  modal.classList.add('show');
+}
+
+// Hide game over modal
+function hideGameOverModal() {
+  const modal = document.getElementById('game-over-modal');
+  modal.classList.remove('show');
+}
+
 // Make a move
 function makeMove(fromRow, fromCol, toRow, toCol) {
   const piece = board[fromRow][fromCol];
@@ -693,9 +791,16 @@ function makeMove(fromRow, fromCol, toRow, toCol) {
   // Switch turn
   currentTurn = currentTurn === 'w' ? 'b' : 'w';
 
+  // Check for game end
+  checkGameEnd();
+
   // Update UI
   updateMoveList();
   updateTurnIndicator();
+  drawBoard(); // Redraw to show check highlight if any
+
+  // Don't continue if game is over
+  if (gameOver) return;
 
   // Auto-analyze or play engine move
   const playVsEngine = document.getElementById('play-vs-engine').checked;
@@ -762,8 +867,26 @@ function updateMoveList() {
 // Update turn indicator
 function updateTurnIndicator() {
   const indicator = document.getElementById('turn-indicator');
-  indicator.textContent = currentTurn === 'w' ? 'Red to move' : 'Black to move';
-  indicator.className = currentTurn === 'w' ? 'red' : 'black';
+  let text = currentTurn === 'w' ? 'Red to move' : 'Black to move';
+
+  if (gameOver) {
+    if (gameResult === 'red-wins') {
+      text = 'Red Wins!';
+    } else if (gameResult === 'black-wins') {
+      text = 'Black Wins!';
+    } else {
+      text = 'Draw!';
+    }
+  } else if (isInCheck) {
+    text += ' - CHECK!';
+  }
+
+  indicator.textContent = text;
+  let className = currentTurn === 'w' ? 'red' : 'black';
+  if (isInCheck && !gameOver) {
+    className += ' in-check';
+  }
+  indicator.className = className;
 }
 
 // Go to a specific move
@@ -798,6 +921,12 @@ function newGame() {
   legalMoves = [];
   moveHistory = [];
   positionHistory = [];
+  isInCheck = false;
+  gameOver = false;
+  gameResult = null;
+
+  // Hide modal if showing
+  hideGameOverModal();
 
   updateMoveList();
   updateTurnIndicator();
@@ -1046,6 +1175,14 @@ function init() {
   document.getElementById('flip-board').addEventListener('click', flipBoard);
   document.getElementById('undo-move').addEventListener('click', undoMove);
   document.getElementById('get-hint').addEventListener('click', getHint);
+
+  // Modal button event listeners
+  document.getElementById('modal-new-game').addEventListener('click', () => {
+    newGame();
+  });
+  document.getElementById('modal-close').addEventListener('click', () => {
+    hideGameOverModal();
+  });
 
   // PV line hover and click event listeners
   for (let i = 1; i <= 3; i++) {
