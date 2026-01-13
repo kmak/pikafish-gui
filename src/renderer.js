@@ -515,7 +515,158 @@ function getLegalMoves(row, col) {
       break;
   }
 
-  return moves;
+  // Filter out moves that leave king in check
+  return filterLegalMoves(row, col, moves, color);
+}
+
+// Find king position for a color
+function findKing(boardState, color) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const p = boardState[r][c];
+      if (p && p.type === 'K' && p.color === color) {
+        return { row: r, col: c };
+      }
+    }
+  }
+  return null;
+}
+
+// Check if a square is attacked by enemy pieces
+function isSquareAttacked(boardState, row, col, byColor) {
+  // Check attacks from each enemy piece type
+
+  // Rook/King attacks (straight lines)
+  for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+    let nr = row + dr;
+    let nc = col + dc;
+    let firstPiece = true;
+    while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+      const p = boardState[nr][nc];
+      if (p) {
+        if (p.color === byColor) {
+          if (p.type === 'R') return true;
+          if (p.type === 'K' && firstPiece) return true; // King can attack adjacent
+        }
+        break;
+      }
+      firstPiece = false;
+      nr += dr;
+      nc += dc;
+    }
+  }
+
+  // Cannon attacks (needs exactly one piece to jump)
+  for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+    let nr = row + dr;
+    let nc = col + dc;
+    let jumped = false;
+    while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+      const p = boardState[nr][nc];
+      if (p) {
+        if (jumped) {
+          if (p.color === byColor && p.type === 'C') return true;
+          break;
+        } else {
+          jumped = true;
+        }
+      }
+      nr += dr;
+      nc += dc;
+    }
+  }
+
+  // Knight attacks
+  const knightAttacks = [
+    [-2, -1, -1, 0], [-2, 1, -1, 0],
+    [2, -1, 1, 0], [2, 1, 1, 0],
+    [-1, -2, 0, -1], [-1, 2, 0, 1],
+    [1, -2, 0, -1], [1, 2, 0, 1]
+  ];
+  for (const [dr, dc, br, bc] of knightAttacks) {
+    const nr = row + dr;
+    const nc = col + dc;
+    if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+      const p = boardState[nr][nc];
+      // Check if knight is there and not blocked
+      if (p && p.color === byColor && p.type === 'N') {
+        // Block position for the attacking knight
+        const blockRow = nr - br;
+        const blockCol = nc - bc;
+        if (!boardState[blockRow][blockCol]) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // Pawn attacks
+  const pawnDir = byColor === 'w' ? 1 : -1; // Direction pawn attacks FROM
+  // Pawn attacks from front
+  const pawnFrontRow = row + pawnDir;
+  if (pawnFrontRow >= 0 && pawnFrontRow < ROWS) {
+    const p = boardState[pawnFrontRow][col];
+    if (p && p.color === byColor && p.type === 'P') return true;
+  }
+  // Pawn attacks from sides (if crossed river)
+  for (const dc of [-1, 1]) {
+    const nc = col + dc;
+    if (nc >= 0 && nc < COLS) {
+      const p = boardState[row][nc];
+      if (p && p.color === byColor && p.type === 'P') {
+        // Check if pawn has crossed river
+        const crossedRiver = byColor === 'w' ? row <= 4 : row >= 5;
+        if (crossedRiver) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Check for flying generals (kings facing each other on same file)
+function hasFlyingGenerals(boardState) {
+  const redKing = findKing(boardState, 'w');
+  const blackKing = findKing(boardState, 'b');
+
+  if (!redKing || !blackKing) return false;
+  if (redKing.col !== blackKing.col) return false;
+
+  // Check if there are any pieces between them
+  const minRow = Math.min(redKing.row, blackKing.row);
+  const maxRow = Math.max(redKing.row, blackKing.row);
+
+  for (let r = minRow + 1; r < maxRow; r++) {
+    if (boardState[r][redKing.col]) return false;
+  }
+
+  return true; // Kings are facing each other
+}
+
+// Filter moves to only legal ones (that don't leave king in check)
+function filterLegalMoves(fromRow, fromCol, moves, color) {
+  const validMoves = [];
+
+  for (const move of moves) {
+    // Make the move on a copy of the board
+    const testBoard = board.map(row => row.map(cell => cell ? {...cell} : null));
+    testBoard[move.row][move.col] = testBoard[fromRow][fromCol];
+    testBoard[fromRow][fromCol] = null;
+
+    // Check if our king is in check after this move
+    const kingPos = findKing(testBoard, color);
+    if (!kingPos) continue;
+
+    const enemyColor = color === 'w' ? 'b' : 'w';
+    const inCheck = isSquareAttacked(testBoard, kingPos.row, kingPos.col, enemyColor);
+    const flyingGenerals = hasFlyingGenerals(testBoard);
+
+    if (!inCheck && !flyingGenerals) {
+      validMoves.push(move);
+    }
+  }
+
+  return validMoves;
 }
 
 // Make a move
@@ -655,6 +806,7 @@ function newGame() {
   // Clear analysis
   document.getElementById('depth').textContent = '-';
   clearPVLines();
+  updateEvalBar(0); // Reset eval bar to neutral
 
   if (document.getElementById('auto-analyze').checked) {
     analyzePosition();
@@ -819,6 +971,11 @@ function parseInfoLine(line) {
       evalEl.textContent = evalText;
       evalEl.className = 'pv-eval' + (evalValue < 0 ? ' negative' : '');
 
+      // Update eval bar for first PV line
+      if (multipv === 1) {
+        updateEvalBar(evalValue, isMate);
+      }
+
       // Continuation (remaining moves)
       contEl.textContent = pv.slice(1, 6).join(' ');
     }
@@ -833,6 +990,47 @@ function updateEngineStatus(status, message) {
   const statusEl = document.getElementById('engine-status');
   statusEl.textContent = message;
   statusEl.className = `engine-status ${status}`;
+}
+
+// Update the eval bar visualization
+function updateEvalBar(evalCp, isMate = false) {
+  const evalBar = document.getElementById('eval-bar-fill');
+  const evalValue = document.getElementById('eval-value');
+
+  let evalText;
+  let percentage;
+
+  if (isMate) {
+    evalText = (evalCp > 0 ? '+' : '') + 'M' + Math.abs(evalCp);
+    percentage = evalCp > 0 ? 100 : 0;
+  } else {
+    // Convert centipawns to display value
+    const evalPawns = evalCp / 100;
+    evalText = (evalPawns >= 0 ? '+' : '') + evalPawns.toFixed(2);
+
+    // Map eval to percentage (sigmoid-like curve)
+    // At +5.0 pawns, bar is ~95% red; at -5.0, ~5% red
+    const maxEval = 500; // 5 pawns = full bar
+    const clampedEval = Math.max(-maxEval, Math.min(maxEval, evalCp));
+    percentage = 50 + (clampedEval / maxEval) * 50;
+  }
+
+  // Update the bar
+  if (evalCp >= 0) {
+    evalBar.classList.remove('black-winning');
+    evalBar.style.bottom = '50%';
+    evalBar.style.top = 'auto';
+    evalBar.style.height = `${percentage - 50}%`;
+  } else {
+    evalBar.classList.add('black-winning');
+    evalBar.style.bottom = 'auto';
+    evalBar.style.top = '50%';
+    evalBar.style.height = `${50 - percentage}%`;
+  }
+
+  // Update the text
+  evalValue.textContent = evalText;
+  evalValue.className = 'eval-value' + (evalCp >= 0 ? ' positive' : ' negative');
 }
 
 // Initialize

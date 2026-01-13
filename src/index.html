@@ -10,8 +10,16 @@
 <body>
   <div class="container">
     <div class="board-section">
-      <div class="board-container">
-        <canvas id="board" width="490" height="535"></canvas>
+      <div class="board-with-eval">
+        <div class="eval-bar-container">
+          <div class="eval-bar">
+            <div class="eval-bar-fill" id="eval-bar-fill"></div>
+          </div>
+          <div class="eval-value" id="eval-value">0.00</div>
+        </div>
+        <div class="board-container">
+          <canvas id="board" width="490" height="535"></canvas>
+        </div>
       </div>
       <div class="controls">
         <button id="new-game">New Game</button>
