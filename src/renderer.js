@@ -849,7 +849,7 @@ function init() {
   document.getElementById('undo-move').addEventListener('click', undoMove);
   document.getElementById('get-hint').addEventListener('click', getHint);
 
-  // PV line hover event listeners
+  // PV line hover and click event listeners
   for (let i = 1; i <= 3; i++) {
     const pvLine = document.getElementById(`pv-${i}`);
     if (pvLine) {
@@ -865,6 +865,13 @@ function init() {
       pvLine.addEventListener('mouseleave', () => {
         highlightedMove = null;
         drawBoard();
+      });
+      pvLine.addEventListener('click', () => {
+        const moveText = pvLine.querySelector('.pv-move').textContent;
+        if (moveText && moveText !== '-' && moveText.length >= 4) {
+          highlightedMove = null;
+          makeMoveUCI(moveText);
+        }
       });
     }
   }
