@@ -35,6 +35,8 @@ let flipped = false;
 let engineReady = false;
 let isThinking = false;
 let highlightedMove = null; // {from: {row, col}, to: {row, col}}
+let lastMove = null; // {from: {row, col}, to: {row, col}, isEngine: bool}
+let lastMoveAnimation = 0; // Animation progress (0-1)
 let isInCheck = false;
 let gameOver = false;
 let gameResult = null; // 'red-wins', 'black-wins', 'draw'
@@ -249,6 +251,55 @@ function drawBoard() {
     }
   }
 
+  // Draw last move highlight
+  if (lastMove) {
+    const fromRow = flipped ? (ROWS - 1 - lastMove.from.row) : lastMove.from.row;
+    const fromCol = flipped ? (COLS - 1 - lastMove.from.col) : lastMove.from.col;
+    const toRow = flipped ? (ROWS - 1 - lastMove.to.row) : lastMove.to.row;
+    const toCol = flipped ? (COLS - 1 - lastMove.to.col) : lastMove.to.col;
+
+    const fromX = offsetX + fromCol * CELL_SIZE;
+    const fromY = offsetY + fromRow * CELL_SIZE;
+    const toX = offsetX + toCol * CELL_SIZE;
+    const toY = offsetY + toRow * CELL_SIZE;
+
+    // For engine moves, draw animated arrow
+    if (lastMove.isEngine && lastMoveAnimation > 0) {
+      const alpha = lastMoveAnimation;
+      const pulseScale = 1 + 0.1 * Math.sin(lastMoveAnimation * Math.PI * 2);
+
+      // Draw glowing "from" square
+      ctx.beginPath();
+      ctx.arc(fromX, fromY, CELL_SIZE * 0.48 * pulseScale, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 200, 0, ${alpha * 0.8})`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Draw glowing "to" square
+      ctx.beginPath();
+      ctx.arc(toX, toY, CELL_SIZE * 0.48 * pulseScale, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 150, 0, ${alpha})`;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // Draw animated arrow
+      drawAnimatedArrow(fromX, fromY, toX, toY, alpha);
+    } else {
+      // Static subtle highlight for all moves
+      ctx.beginPath();
+      ctx.arc(fromX, fromY, CELL_SIZE * 0.46, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(toX, toY, CELL_SIZE * 0.46, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 150, 0, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+
   // Draw highlighted move from PV hover
   if (highlightedMove) {
     const fromRow = flipped ? (ROWS - 1 - highlightedMove.from.row) : highlightedMove.from.row;
@@ -310,6 +361,48 @@ function drawArrow(fromX, fromY, toX, toY) {
   ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
   ctx.closePath();
   ctx.fillStyle = 'rgba(0, 200, 255, 0.7)';
+  ctx.fill();
+}
+
+// Draw an animated arrow for engine moves
+function drawAnimatedArrow(fromX, fromY, toX, toY, alpha) {
+  const headLength = 18;
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+
+  const shortenBy = CELL_SIZE * 0.35;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  const ratio = (length - shortenBy) / length;
+
+  const endX = fromX + dx * ratio;
+  const endY = fromY + dy * ratio;
+  const startX = fromX + dx * (1 - ratio) * 0.5;
+  const startY = fromY + dy * (1 - ratio) * 0.5;
+
+  // Draw glowing arrow line
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = `rgba(255, 180, 0, ${alpha})`;
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  // Inner brighter line
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.strokeStyle = `rgba(255, 220, 100, ${alpha * 0.8})`;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Draw arrowhead
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fillStyle = `rgba(255, 180, 0, ${alpha})`;
   ctx.fill();
 }
 
@@ -768,7 +861,7 @@ function hideGameOverModal() {
 }
 
 // Make a move
-function makeMove(fromRow, fromCol, toRow, toCol) {
+function makeMove(fromRow, fromCol, toRow, toCol, isEngine = false) {
   const piece = board[fromRow][fromCol];
   const captured = board[toRow][toCol];
 
@@ -778,6 +871,19 @@ function makeMove(fromRow, fromCol, toRow, toCol) {
   // Update board
   board[toRow][toCol] = piece;
   board[fromRow][fromCol] = null;
+
+  // Track last move for highlighting
+  lastMove = {
+    from: { row: fromRow, col: fromCol },
+    to: { row: toRow, col: toCol },
+    isEngine: isEngine
+  };
+
+  // Start animation for engine moves
+  if (isEngine) {
+    lastMoveAnimation = 1;
+    animateEngineMove();
+  }
 
   // Record move
   const moveUCI = posToUCI(fromRow, fromCol) + posToUCI(toRow, toCol);
@@ -814,16 +920,38 @@ function makeMove(fromRow, fromCol, toRow, toCol) {
 }
 
 // Make a move from UCI notation
-function makeMoveUCI(uci) {
+function makeMoveUCI(uci, isEngine = false) {
   const from = uciToPos(uci.substring(0, 2));
   const to = uciToPos(uci.substring(2, 4));
 
   if (board[from.row][from.col]) {
-    makeMove(from.row, from.col, to.row, to.col);
+    makeMove(from.row, from.col, to.row, to.col, isEngine);
     selectedPiece = null;
     legalMoves = [];
     drawBoard();
   }
+}
+
+// Animate engine move with fade effect
+function animateEngineMove() {
+  const duration = 1500; // 1.5 seconds
+  const startTime = performance.now();
+
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    // Ease out curve for smooth fade
+    lastMoveAnimation = 1 - progress;
+
+    drawBoard();
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  requestAnimationFrame(animate);
 }
 
 // Undo last move
@@ -838,6 +966,17 @@ function undoMove() {
 
   selectedPiece = null;
   legalMoves = [];
+  lastMoveAnimation = 0;
+
+  // Update lastMove to show the previous move (if any)
+  if (moveHistory.length > 0) {
+    const prevMove = moveHistory[moveHistory.length - 1];
+    const from = uciToPos(prevMove.uci.substring(0, 2));
+    const to = uciToPos(prevMove.uci.substring(2, 4));
+    lastMove = { from, to, isEngine: false };
+  } else {
+    lastMove = null;
+  }
 
   updateMoveList();
   updateTurnIndicator();
@@ -919,6 +1058,8 @@ function newGame() {
   currentTurn = result.turn;
   selectedPiece = null;
   legalMoves = [];
+  lastMove = null;
+  lastMoveAnimation = 0;
   moveHistory = [];
   positionHistory = [];
   isInCheck = false;
@@ -1045,7 +1186,7 @@ function handleEngineOutput(line) {
     // If playing vs engine and it's engine's turn, make the move
     const playVsEngine = document.getElementById('play-vs-engine').checked;
     if (playVsEngine && currentTurn === 'b') {
-      setTimeout(() => makeMoveUCI(bestMove), 300);
+      setTimeout(() => makeMoveUCI(bestMove, true), 300);
     }
   }
 }
