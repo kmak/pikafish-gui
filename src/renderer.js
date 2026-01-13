@@ -5,7 +5,8 @@ const ctx = canvas.getContext('2d');
 
 // Board dimensions
 const CELL_SIZE = 50;
-const BOARD_PADDING = 25;
+const BOARD_PADDING = 30;
+const LABEL_MARGIN = 20;
 const COLS = 9;
 const ROWS = 10;
 
@@ -172,6 +173,27 @@ function drawBoard() {
   const riverY = offsetY + 4.5 * CELL_SIZE;
   ctx.fillText('楚 河', offsetX + 2 * CELL_SIZE, riverY);
   ctx.fillText('漢 界', offsetX + 6 * CELL_SIZE, riverY);
+
+  // Draw axis labels
+  ctx.fillStyle = '#5a3a1a';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // File labels (a-i) at bottom
+  for (let i = 0; i < COLS; i++) {
+    const file = String.fromCharCode('a'.charCodeAt(0) + (flipped ? (COLS - 1 - i) : i));
+    const x = offsetX + i * CELL_SIZE;
+    ctx.fillText(file, x, offsetY + 9 * CELL_SIZE + LABEL_MARGIN + 10);
+  }
+
+  // Rank labels (0-9) on right side
+  ctx.textAlign = 'left';
+  for (let i = 0; i < ROWS; i++) {
+    const rank = flipped ? i : (9 - i);
+    const y = offsetY + i * CELL_SIZE;
+    ctx.fillText(rank.toString(), offsetX + 8 * CELL_SIZE + LABEL_MARGIN + 5, y);
+  }
 
   // Draw pieces
   for (let row = 0; row < ROWS; row++) {
