@@ -1,0 +1,30 @@
+{
+  "name": "pikafish-gui",
+  "version": "1.0.0",
+  "description": "A desktop GUI for the Pikafish Xiangqi engine",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "author": "",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.pikafish.gui",
+    "productName": "Pikafish",
+    "mac": {
+      "category": "public.app-category.games",
+      "target": "dmg",
+      "extraResources": [
+        {
+          "from": "engine",
+          "to": "engine"
+        }
+      ]
+    }
+  }
+}

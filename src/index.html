@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Pikafish - Xiangqi Engine</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="board-section">
+      <div class="board-container">
+        <canvas id="board" width="460" height="510"></canvas>
+      </div>
+      <div class="controls">
+        <button id="new-game">New Game</button>
+        <button id="flip-board">Flip Board</button>
+        <button id="undo-move">Undo</button>
+        <button id="get-hint">Get Hint</button>
+      </div>
+      <div class="game-info">
+        <span id="turn-indicator">Red to move</span>
+        <span id="status"></span>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="engine-section">
+        <h3>Engine Analysis</h3>
+        <div class="engine-status" id="engine-status">Connecting...</div>
+        <div class="analysis-info">
+          <div class="analysis-row">
+            <span class="label">Depth:</span>
+            <span id="depth">-</span>
+          </div>
+          <div class="analysis-row">
+            <span class="label">Eval:</span>
+            <span id="eval">-</span>
+          </div>
+          <div class="analysis-row">
+            <span class="label">Best:</span>
+            <span id="bestmove">-</span>
+          </div>
+          <div class="analysis-row">
+            <span class="label">PV:</span>
+            <span id="pv">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Settings</h3>
+        <div class="setting-row">
+          <label for="think-time">Think Time (ms):</label>
+          <input type="number" id="think-time" value="2000" min="100" max="60000" step="100">
+        </div>
+        <div class="setting-row">
+          <label>
+            <input type="checkbox" id="auto-analyze" checked>
+            Auto-analyze position
+          </label>
+        </div>
+        <div class="setting-row">
+          <label>
+            <input type="checkbox" id="play-vs-engine">
+            Play vs Engine (you play Red)
+          </label>
+        </div>
+      </div>
+
+      <div class="moves-section">
+        <h3>Move History</h3>
+        <div id="move-list" class="move-list"></div>
+      </div>
+
+      <div class="engine-output-section">
+        <h3>Engine Output</h3>
+        <div id="engine-output" class="engine-output"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
