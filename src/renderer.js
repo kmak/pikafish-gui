@@ -975,6 +975,7 @@ function requestEngineMove() {
   document.getElementById('status').textContent = 'Engine thinking...';
 
   const moves = moveHistory.map(m => m.uci).join(' ');
+  const difficulty = parseInt(document.getElementById('difficulty').value);
   const thinkTime = document.getElementById('think-time').value;
 
   window.engine.send('stop');
@@ -984,7 +985,13 @@ function requestEngineMove() {
   } else {
     window.engine.send('position startpos');
   }
-  window.engine.send(`go movetime ${thinkTime}`);
+
+  // Use depth-based search for difficulty levels, time-based for maximum
+  if (difficulty > 0) {
+    window.engine.send(`go depth ${difficulty}`);
+  } else {
+    window.engine.send(`go movetime ${thinkTime}`);
+  }
 }
 
 function getHint() {

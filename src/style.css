@@ -262,7 +262,8 @@ body {
   gap: 8px;
 }
 
-.setting-row input[type="number"] {
+.setting-row input[type="number"],
+.setting-row select {
   width: 100px;
   padding: 6px 10px;
   border: 1px solid #555;
@@ -270,6 +271,11 @@ body {
   background: #2c2c2c;
   color: #e0e0e0;
   font-size: 13px;
+}
+
+.setting-row select {
+  width: 150px;
+  cursor: pointer;
 }
 
 .setting-row input[type="checkbox"] {
