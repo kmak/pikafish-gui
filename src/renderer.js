@@ -590,9 +590,7 @@ function newGame() {
 
   // Clear analysis
   document.getElementById('depth').textContent = '-';
-  document.getElementById('eval').textContent = '-';
-  document.getElementById('bestmove').textContent = '-';
-  document.getElementById('pv').textContent = '-';
+  clearPVLines();
 
   if (document.getElementById('auto-analyze').checked) {
     analyzePosition();
@@ -653,6 +651,19 @@ function getHint() {
   analyzePosition();
 }
 
+// Clear all PV lines
+function clearPVLines() {
+  for (let i = 1; i <= 3; i++) {
+    const pvLine = document.getElementById(`pv-${i}`);
+    if (pvLine) {
+      pvLine.querySelector('.pv-move').textContent = '-';
+      pvLine.querySelector('.pv-eval').textContent = '-';
+      pvLine.querySelector('.pv-eval').className = 'pv-eval';
+      pvLine.querySelector('.pv-continuation').textContent = '-';
+    }
+  }
+}
+
 // Handle engine output
 function handleEngineOutput(line) {
   const output = document.getElementById('engine-output');
@@ -663,17 +674,18 @@ function handleEngineOutput(line) {
   if (line === 'uciok') {
     engineReady = true;
     updateEngineStatus('connected', 'Engine ready');
+    // Enable MultiPV mode for learning
+    window.engine.send('setoption name MultiPV value 3');
     window.engine.send('isready');
   } else if (line === 'readyok') {
     if (document.getElementById('auto-analyze').checked) {
       analyzePosition();
     }
-  } else if (line.startsWith('info')) {
+  } else if (line.startsWith('info') && line.includes('pv')) {
     parseInfoLine(line);
   } else if (line.startsWith('bestmove')) {
     const parts = line.split(' ');
     const bestMove = parts[1];
-    document.getElementById('bestmove').textContent = bestMove;
 
     isThinking = false;
     document.getElementById('status').textContent = '';
@@ -689,21 +701,62 @@ function handleEngineOutput(line) {
 function parseInfoLine(line) {
   const parts = line.split(' ');
 
+  let multipv = 1;
+  let depth = null;
+  let score = null;
+  let isMate = false;
+  let pv = [];
+
   for (let i = 0; i < parts.length; i++) {
-    if (parts[i] === 'depth') {
-      document.getElementById('depth').textContent = parts[i + 1];
+    if (parts[i] === 'multipv') {
+      multipv = parseInt(parts[i + 1]);
+    } else if (parts[i] === 'depth') {
+      depth = parts[i + 1];
     } else if (parts[i] === 'score') {
       if (parts[i + 1] === 'cp') {
-        const cp = parseInt(parts[i + 2]);
-        const adjusted = currentTurn === 'w' ? cp : -cp;
-        document.getElementById('eval').textContent = (adjusted / 100).toFixed(2);
+        score = parseInt(parts[i + 2]);
       } else if (parts[i + 1] === 'mate') {
-        const mate = parseInt(parts[i + 2]);
-        document.getElementById('eval').textContent = `Mate in ${Math.abs(mate)}`;
+        score = parseInt(parts[i + 2]);
+        isMate = true;
       }
     } else if (parts[i] === 'pv') {
-      const pv = parts.slice(i + 1).join(' ');
-      document.getElementById('pv').textContent = pv;
+      pv = parts.slice(i + 1);
+      break;
+    }
+  }
+
+  // Update depth (only from first PV line)
+  if (multipv === 1 && depth) {
+    document.getElementById('depth').textContent = depth;
+  }
+
+  // Update the correct PV line
+  if (multipv >= 1 && multipv <= 3 && pv.length > 0) {
+    const pvLine = document.getElementById(`pv-${multipv}`);
+    if (pvLine) {
+      const moveEl = pvLine.querySelector('.pv-move');
+      const evalEl = pvLine.querySelector('.pv-eval');
+      const contEl = pvLine.querySelector('.pv-continuation');
+
+      // First move
+      moveEl.textContent = pv[0];
+
+      // Evaluation
+      let evalText;
+      let evalValue;
+      if (isMate) {
+        evalText = `M${Math.abs(score)}`;
+        evalValue = score > 0 ? 1000 : -1000;
+      } else {
+        // Adjust eval to always be from Red's perspective
+        evalValue = currentTurn === 'w' ? score : -score;
+        evalText = (evalValue >= 0 ? '+' : '') + (evalValue / 100).toFixed(2);
+      }
+      evalEl.textContent = evalText;
+      evalEl.className = 'pv-eval' + (evalValue < 0 ? ' negative' : '');
+
+      // Continuation (remaining moves)
+      contEl.textContent = pv.slice(1, 6).join(' ');
     }
   }
 }

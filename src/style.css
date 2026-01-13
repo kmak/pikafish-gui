@@ -129,29 +129,61 @@ body {
   color: #ff8;
 }
 
-.analysis-info {
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+.analysis-header {
   font-size: 13px;
-}
-
-.analysis-row {
-  display: flex;
-  gap: 10px;
-  padding: 4px 0;
+  color: #888;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #4a4a4a;
 }
 
-.analysis-row:last-child {
-  border-bottom: none;
+.analysis-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.analysis-row .label {
+.pv-line {
+  display: grid;
+  grid-template-columns: 24px 55px 55px 1fr;
+  gap: 8px;
+  padding: 8px;
+  background: #2c2c2c;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 12px;
+  align-items: center;
+}
+
+.pv-line:first-child {
+  background: #3d4a3d;
+}
+
+.pv-rank {
   color: #888;
-  min-width: 50px;
+  font-weight: bold;
 }
 
-#pv {
-  word-break: break-all;
+.pv-move {
+  color: #fff;
+  font-weight: bold;
+}
+
+.pv-eval {
+  color: #8f8;
+  text-align: right;
+}
+
+.pv-eval.negative {
+  color: #f88;
+}
+
+.pv-continuation {
+  color: #888;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .setting-row {
