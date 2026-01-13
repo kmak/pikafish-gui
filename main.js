@@ -82,10 +82,14 @@ ipcMain.on('engine-command', (event, command) => {
 });
 
 ipcMain.handle('start-engine', async () => {
+  console.log('start-engine called, engine exists:', !!engine);
   if (!engine) {
     startEngine();
     return { success: true };
   }
+  // Engine already running - reinitialize UCI for renderer reload
+  console.log('Sending uci command to existing engine');
+  sendToEngine('uci');
   return { success: true, message: 'Engine already running' };
 });
 

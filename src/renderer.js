@@ -719,6 +719,9 @@ function init() {
   drawBoard();
 
   updateEngineStatus('connecting', 'Connecting to engine...');
+
+  // Request engine start (will reinitialize UCI if already running)
+  window.engine.start();
 }
 
 // Start the app
